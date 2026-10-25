@@ -22,8 +22,8 @@ class MainActivity : Activity() {
  }
  private fun showNotes(){
   val notes=NoteStore.list(this)
-  val names=Array(notes.length()){i->notes.getJSONObject(i).optString("title")}
-  AlertDialog.Builder(this).setTitle("Minhas anotações").setItems(names){_,index->
+  val names=Array(notes.length()){i->"ABRIR NOTA: "+notes.getJSONObject(i).optString("title")}
+  AlertDialog.Builder(this).setTitle("Minhas anotações: toque para abrir").setItems(names){_,index->
    val note=notes.getJSONObject(index)
    val edit=android.widget.EditText(this).apply{setText(note.optString("body"));minLines=4}
    AlertDialog.Builder(this).setTitle(note.optString("title")).setView(edit)

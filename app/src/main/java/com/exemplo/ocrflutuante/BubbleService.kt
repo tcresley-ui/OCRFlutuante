@@ -34,7 +34,7 @@ class BubbleService : Service() {
    val data=if(Build.VERSION.SDK_INT>=33) intent?.getParcelableExtra("data",Intent::class.java) else intent?.getParcelableExtra<Intent>("data")
    if(data==null) {stopSelf();return START_NOT_STICKY}
    val mgr=getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-   projection=mgr.getMediaProjection(intent.getIntExtra("code",Activity.RESULT_CANCELED),data)
+   projection=mgr.getMediaProjection(intent?.getIntExtra("code",Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED,data)
    projection?.registerCallback(object:MediaProjection.Callback(){override fun onStop(){handler.post {stopSelf()} }},handler)
   }
   wm=getSystemService(WINDOW_SERVICE) as WindowManager

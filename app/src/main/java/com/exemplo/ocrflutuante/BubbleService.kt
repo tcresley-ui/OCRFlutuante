@@ -16,6 +16,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.math.*
 
 class BubbleService : Service() {
+ companion object { var active=false }
  private lateinit var wm:WindowManager
  private var bubble:View?=null; private var selection:SelectionView?=null
  private var projection:MediaProjection?=null
@@ -30,6 +31,7 @@ class BubbleService : Service() {
   val pending=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE)
   val notification=Notification.Builder(this,channel).setContentTitle("OCR Flutuante ativo").setContentText("Toque na bolinha para copiar texto").setSmallIcon(android.R.drawable.ic_menu_crop).setContentIntent(pending).build()
   startForeground(1,notification)
+  active=true
   if(projection==null) {
    val data=if(Build.VERSION.SDK_INT>=33) intent?.getParcelableExtra("data",Intent::class.java) else intent?.getParcelableExtra<Intent>("data")
    if(data==null) {stopSelf();return START_NOT_STICKY}
@@ -43,8 +45,8 @@ class BubbleService : Service() {
  }
  private fun params(width:Int,height:Int,flags:Int)=WindowManager.LayoutParams(width,height,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,flags,android.graphics.PixelFormat.TRANSLUCENT).apply {gravity=Gravity.TOP or Gravity.START}
  private fun showBubble(){
-  val btn=TextView(this).apply {text="OCR"; textSize=16f; setTextColor(Color.WHITE); gravity=Gravity.CENTER; background=android.graphics.drawable.GradientDrawable().apply {setColor(Color.rgb(32,105,219));cornerRadius=100f}; elevation=10f}
-  val p=params(150,150,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);p.x=20;p.y=300
+  val btn=TextView(this).apply {text="OCR"; textSize=10f; setTextColor(Color.WHITE); gravity=Gravity.CENTER; background=android.graphics.drawable.GradientDrawable().apply {setColor(Color.rgb(32,105,219));cornerRadius=100f}; elevation=10f}
+  val p=params((40*resources.displayMetrics.density).toInt(),(40*resources.displayMetrics.density).toInt(),WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);p.x=20;p.y=300
   var downX=0f;var downY=0f;var startX=0;var startY=0
   btn.setOnTouchListener { _,e->when(e.action){
    MotionEvent.ACTION_DOWN->{downX=e.rawX;downY=e.rawY;startX=p.x;startY=p.y;true}
@@ -81,11 +83,11 @@ class BubbleService : Service() {
     val bounds=Rect(rect);bounds.intersect(0,0,w,h)
     if(bounds.isEmpty){padded.recycle();finish();return}
     val crop=Bitmap.createBitmap(padded,bounds.left,bounds.top,bounds.width(),bounds.height());padded.recycle();finish()
-    recognizer.process(InputImage.fromBitmap(crop,0)).addOnSuccessListener {result->val t=result.text.trim();if(t.isNotEmpty()){(getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(ClipData.newPlainText("Texto OCR",t));toast("Texto copiado!")}else toast("Nenhum texto encontrado")}.addOnFailureListener{toast("Erro ao reconhecer texto")}.addOnCompleteListener{crop.recycle()}
+    recognizer.process(InputImage.fromBitmap(crop,0)).addOnSuccessListener {result->val t=result.text.trim();if(t.isNotEmpty()){(getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(ClipData.newPlainText("Texto OCR",t));NoteStore.add(this,t);toast("Texto copiado e salvo!")}else toast("Nenhum texto encontrado")}.addOnFailureListener{toast("Erro ao reconhecer texto")}.addOnCompleteListener{crop.recycle()}
    }catch(ex:Exception){finish();toast("Falha na captura") }finally{img.close()}
   }
   handler.postDelayed({poll()},250)
  }
  private fun toast(s:String){handler.post{Toast.makeText(this,s,Toast.LENGTH_SHORT).show()}}
- override fun onDestroy(){selection?.let{wm.removeView(it)};bubble?.let{wm.removeView(it)};reader?.close();projection?.stop();recognizer.close();super.onDestroy()}
+ override fun onDestroy(){active=false;selection?.let{wm.removeView(it)};bubble?.let{wm.removeView(it)};reader?.close();projection?.stop();recognizer.close();super.onDestroy()}
 }
